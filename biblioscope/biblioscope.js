@@ -14,21 +14,21 @@ const discoveryJourney = [];
 async function visitRecord(ppn) {
     // flush the DOM
     $('main').empty();
-    doc = await fetchRecordsBy(database, "ppn", ppn);
-    //doc = await fetchRecordsBy(database, "tit", "Falkner");
-    docMetadata = await extractMetadata(doc);
-    renderRecords(docMetadata, "currentTitle", "primary");
 
-    for(author of docMetadata[0].author) {
+    // current document
+    currentDocument = await fetchRecordsBy(database, "ppn", ppn);
+    currentDocumentMetadata = await extractMetadata(currentDocument);
+    renderRecords(currentDocumentMetadata, "currentTitle", "primary", "Active Document");
+
+    for (author of currentDocumentMetadata[0].author) {
         if (author.nameIdentifier) {
             doc2 = await fetchRecordsBy(database, "nid", author.nameIdentifier);
         } else {
             doc2 = await fetchRecordsBy(database, "per", author.family + ", " + author.given);
         }
         doc2Metadata = await extractMetadata(doc2);
-        renderRecords(doc2Metadata, "relatedByAuthor", "light");
+        renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related documents by author(s)");
     }
-    //documentsRelatedByAuthors = fetch
 }
 
 /**
@@ -210,14 +210,16 @@ Document.prototype.evaluateSRU = function (xpath) {
  * @param {Array.<{metadata}>} metadata - The simplified metadata object from extractMetadata
  * @param {string} anchor - an arbitrary name for the anchor class of the container
  * @param {string} color - the color class name from bootstrap
+ * @param {string} title - the title of the container
  */
 
-async function renderRecords(metadata, anchor, color) {
+async function renderRecords(metadata, anchor, color, title) {
 
     // place a nav-tab only if there is no nav-tab already
     if ($('main div.' + anchor).length <= 0) {
         $('main').append('\
         <div class="container-fluid ' + anchor + '">\
+            <h1>' + title + '</h1>\
             <nav>\
                 <div class= "nav nav-tabs" id = "nav-tab" role = "tablist">\
                 </div>\
