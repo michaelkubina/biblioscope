@@ -5,13 +5,15 @@ var maxRecords = 10;
 // Initialize an empty array to hold all document metadata
 const discoveryJourney = [];
 
-function flush() {
-    $('main').empty();
-}
-
 // takes the discovery journes to the next record request
+/**
+ * This function serves as the entry point for a new journey path
+ * @param {string} ppn - The ppn (pica production number) of the resource
+ */
+
 async function visitRecord(ppn) {
-    flush();
+    // flush the DOM
+    $('main').empty();
     doc = await fetchRecordsBy(database, "ppn", ppn);
     //doc = await fetchRecordsBy(database, "tit", "Falkner");
     docMetadata = await extractMetadata(doc);
@@ -36,6 +38,7 @@ async function visitRecord(ppn) {
  * @param {string} value - The string representing the actual search query.
  * @returns {XMLDocument} The DOM representing the result of the search query - can have multiple records.
  */
+
 async function fetchRecordsBy(database, field, value) {
     const response = await fetch("https://sru.k10plus.de/" + database + "?version=1.1&operation=searchRetrieve&query=pica." + field + "%3D\"" + value + "\"&maximumRecords=" + maxRecords + "&recordSchema=mods36");
     const record = await response.text();
@@ -51,6 +54,7 @@ async function fetchRecordsBy(database, field, value) {
  * @param {XMLDocument} xmlDocument - The XMLDocument containing the record(s).
  * @returns {Array.<{metadata}>} The array contains all records in a condensed metadata format.
  */
+
 async function extractMetadata(xmlDocument) {
     // initialize empty result array
     result = []
@@ -171,6 +175,7 @@ async function extractMetadata(xmlDocument) {
  * @param {string} prefix - The prefix used in the xpath.
  * @returns {string || null} The url corresponding to the namespace.
  */
+
 function NSResolverSRU(prefix) {
     const namespaces = {
         "mods": "http://www.loc.gov/mods/v3",
@@ -180,12 +185,12 @@ function NSResolverSRU(prefix) {
     return namespaces[prefix] || null; // Return the namespace URI for the given prefix
 }
 
-// custom evaluation function, to make the evaluation call simpler
 /**
  * This function acts as a custom evaluation function, to make the evaluation calls on SRU results simpler.
  * @param {string} xpath - The XPath 1.0 expression.
  * @returns {array.<{XPathResult}> || null} The xpathresult.
  */
+
 Document.prototype.evaluateSRU = function (xpath) {
     xpathresult = this.evaluate(xpath, this, NSResolverSRU, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 
@@ -199,6 +204,13 @@ Document.prototype.evaluateSRU = function (xpath) {
         return xpathresult;
     }
 };
+
+/**
+ * This function places a container into the DOM with a tab-navigation and tab-panes. It populates the tab-panes with cards representing the found documents. Multiple calls on the same anchor stack to the metadata section.
+ * @param {Array.<{metadata}>} metadata - The simplified metadata object from extractMetadata
+ * @param {string} anchor - an arbitrary name for the anchor class of the container
+ * @param {string} color - the color class name from bootstrap
+ */
 
 async function renderRecords(metadata, anchor, color) {
 
