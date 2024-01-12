@@ -18,7 +18,7 @@ async function visitRecord(ppn) {
     // current document
     currentDocument = await fetchRecordsBy(database, "ppn", ppn);
     currentDocumentMetadata = await extractMetadata(currentDocument);
-    renderRecords(currentDocumentMetadata, "currentTitle", "primary", "Active Document");
+    renderRecords(currentDocumentMetadata, "currentTitle", "primary");
 
     for (author of currentDocumentMetadata[0].author) {
         if (author.nameIdentifier) {
@@ -27,7 +27,7 @@ async function visitRecord(ppn) {
             doc2 = await fetchRecordsBy(database, "per", author.family + ", " + author.given);
         }
         doc2Metadata = await extractMetadata(doc2);
-        renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related documents by author(s)");
+        renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related works by the author(s)");
     }
 }
 
@@ -85,9 +85,15 @@ async function extractMetadata(xmlDocument) {
             }],
             "tags": {
                 "isFavourite": false,
+                "fromAuthority": false,
             },
             //"comment": {},
         };
+
+        // set authoritive flag
+        if (result.field == 'nid') {
+            metadata.tags.fromAuthority = "true";
+        }
 
         // xpath counts indices from 1
         let index = i + 1;
@@ -213,15 +219,17 @@ Document.prototype.evaluateSRU = function (xpath) {
  * @param {string} title - the title of the container
  */
 
-async function renderRecords(metadata, anchor, color, title) {
+async function renderRecords(metadata, anchor, color, title = "") {
+
+    console.log(metadata);
 
     // place a nav-tab only if there is no nav-tab already
     if ($('main div.' + anchor).length <= 0) {
         $('main').append('\
-        <div class="container-fluid ' + anchor + '">\
-            <h1>' + title + '</h1>\
+        <div class="' + anchor + '">\
+            <h2 class="text-center">' + title + '</h2>\
             <nav>\
-                <div class= "nav nav-tabs" id = "nav-tab" role = "tablist">\
+                <div class= "nav nav-tabs mb-4" id = "nav-tab" role = "tablist">\
                 </div>\
             </nav>\
             <div class="tab-content" id="nav-tabContent">\
@@ -234,38 +242,17 @@ async function renderRecords(metadata, anchor, color, title) {
 
     navTabIndex = $('main > div.' + anchor + ' div#nav-tab .nav-link').length;
 
-    if (navTabIndex == 0) {
-        // add nav-tab
-        $('main > div.' + anchor + ' div#nav-tab').append('<button class="nav-link active" id="nav-' + anchor + navTabIndex + '-tab" data-bs-toggle="tab" data-bs-target="#nav-' + anchor + navTabIndex + '" type="button" role="tab" aria-controls="nav-' + anchor + navTabIndex + '" aria-selected="true">' + metadata.query + '</button>');
-
-        // add tab-pane
-        $('main > div.' + anchor + ' div.tab-content').append('\
-        <div class="tab-pane fade show active" id="nav-' + anchor + navTabIndex + '" role="tabpanel" aria-labelledby="nav-' + anchor + navTabIndex + '-tab" tabindex="0">\
-            <div class="row row-cols-1 row-cols-md-4 g-4">\
-            </div>\
-        </div>\
-    ');
-    } else {
-        // add nav-tab
-        $('main > div.' + anchor + ' div#nav-tab').append('<button class="nav-link" id="nav-' + anchor + navTabIndex + '-tab" data-bs-toggle="tab" data-bs-target="#nav-' + anchor + navTabIndex + '" type="button" role="tab" aria-controls="nav-' + anchor + navTabIndex + '" aria-selected="true">' + metadata.query + '</button>');
-
-        // add tab-pane
-        $('main > div.' + anchor + ' div.tab-content').append('\
-        <div class="tab-pane fade show" id="nav-' + anchor + navTabIndex + '" role="tabpanel" aria-labelledby="nav-' + anchor + navTabIndex + '-tab" tabindex="0">\
-            <div class="row row-cols-1 row-cols-md-4 g-4">\
-            </div>\
-        </div>\
-    ');
-    }
-
+    // add nav-tab
+    $('main > div.' + anchor + ' div#nav-tab').append('<button class="nav-link' + (navTabIndex == 0 ? ' active' : '') + '" id="nav-' + anchor + navTabIndex + '-tab" data-bs-toggle="tab" data-bs-target="#nav-' + anchor + navTabIndex + '" type="button" role="tab" aria-controls="nav-' + anchor + navTabIndex + '" aria-selected="true">' + metadata.query + '</button>');
 
     // add tab-pane
     $('main > div.' + anchor + ' div.tab-content').append('\
-        <div class="tab-pane fade show" id="nav-' + anchor + navTabIndex + '" role="tabpanel" aria-labelledby="nav-' + anchor + navTabIndex + '-tab" tabindex="0">\
-            <div class="row row-cols-1 row-cols-md-4 g-4">\
-            </div>\
+    <div class="tab-pane fade show' + (navTabIndex == 0 ? ' active' : '') + '" id="nav-' + anchor + navTabIndex + '" role="tabpanel" aria-labelledby="nav-' + anchor + navTabIndex + '-tab" tabindex="0">\
+        <div class="row row-cols-1 row-cols-md-4 g-4">\
         </div>\
+    </div>\
     ');
+
     for (i = 0; i < metadata.length; i++) {
 
         authorlist = [];
@@ -276,14 +263,18 @@ async function renderRecords(metadata, anchor, color, title) {
 
         $('div.' + anchor + '> div > div > div').append('\
         <div class="col">\
-            <div class="card text-bg-' + color + ' mb-4" style="max-width: 540px; cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">\
+            <div class="card shadow text-bg-' + color + '" style="max-width: 540px; cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">\
                 <div class="row g-0">\
                     <div class="col-md-12">\
+                        <div class="card-header">\
+                            <h4 class="text-end mb-0"><i class="bi bi-star"></i></h4>\
+                        </div>\
                         <div class="card-body">\
                             <h5 class="card-title">' + metadata[i].title + '</h5>\
                             <p class="card-text">' + metadata[i].subTitle + '</p>\
                             <p class="card-text"><small class="text-body-secondary">' + authorlist.join(' / ') + '</small></p>\
                         </div>\
+                                ' + (metadata.field != "nid" && metadata.field != "ppn" ? '<div class="card-footer"><div class="alert alert-warning" role="alert">Attention! Results can contain authors or topics with identical names!</div></div>' : '') + '\
                     </div>\
                 </div>\
             </div>\
