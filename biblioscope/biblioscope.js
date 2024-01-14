@@ -20,6 +20,7 @@ async function visitRecord(ppn) {
     currentDocumentMetadata = await extractMetadata(currentDocument);
     renderRecords(currentDocumentMetadata, "currentTitle", "primary");
 
+    // render related documents by author
     for (author of currentDocumentMetadata[0].author) {
         if (author.nameIdentifier) {
             doc2 = await fetchRecordsBy(database, "nid", author.nameIdentifier);
@@ -28,6 +29,21 @@ async function visitRecord(ppn) {
         }
         doc2Metadata = await extractMetadata(doc2);
         renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related works by the author(s)");
+    }
+
+    console.log(currentDocumentMetadata[0].topic);
+    // render related documents by topic
+    for (classificationType in currentDocumentMetadata[0].topic) {
+        for (classification of currentDocumentMetadata[0].topic[classificationType]) {
+            if (classificationType == "ddc") {
+                classificationType = "sgd";
+                classification = classification.substr(0, 3);
+            }
+            
+            relatedDocumentsByTopic = await fetchRecordsBy(database, classificationType, classification);
+            relatedDocumentsByTopicMetadata = await extractMetadata(relatedDocumentsByTopic);
+            renderRecords(relatedDocumentsByTopicMetadata, "relatedByTopic", "secondary", "Related works by topic(s)");
+        }
     }
 }
 
@@ -45,7 +61,7 @@ async function fetchRecordsBy(database, field, value) {
     //console.log(record);
     const parser = new DOMParser();
     var result = parser.parseFromString(record, "application/xml");
-    console.log(result);
+    //console.log(result);
     return result;
 }
 
@@ -71,7 +87,6 @@ async function extractMetadata(xmlDocument) {
 
     // loop over all result records
     records = xmlDocument.evaluateSRU('//zs:record');
- 
 
     for (let i = 0; i < records.snapshotLength; i++) {
 
@@ -83,6 +98,7 @@ async function extractMetadata(xmlDocument) {
                 "family": "",
                 "given": "",
             }],
+            "topic":[],
             "tags": {
                 "isFavourite": false,
                 "fromAuthority": false,
@@ -169,10 +185,30 @@ async function extractMetadata(xmlDocument) {
             }
         }
 
+        // get a list of all used classifications
+        if (classificationAttributes = xmlDocument.evaluateSRU(record + '//mods:mods/mods:classification/@authority')) {
+            classificationList = [];
+            for (let i = 0; i < classificationAttributes.snapshotLength; i++) {
+                classificationList.push(classificationAttributes.snapshotItem(i).nodeValue);
+            }
+
+            // filters array for unique values
+            classificationList = [...new Set(classificationList)];
+
+            // iterate over all classifications
+            for (item of classificationList) {
+                classificationNodes = xmlDocument.evaluateSRU(record + '//mods:mods/mods:classification[@authority="' + item + '"]');
+                metadata.topic[item] = [];
+                for (let i = 0; i < classificationNodes.snapshotLength; i++) {
+                    metadata.topic[item].push((classificationNodes.snapshotItem(i).textContent));
+                }
+            }
+        }
+
         result.push(metadata);
     }
 
-    console.log(result);
+    //console.log(result);
     return result;
 }
 
@@ -221,12 +257,12 @@ Document.prototype.evaluateSRU = function (xpath) {
 
 async function renderRecords(metadata, anchor, color, title = "") {
 
-    console.log(metadata);
+    //console.log(metadata);
 
     // place a nav-tab only if there is no nav-tab already
     if ($('main div.' + anchor).length <= 0) {
         $('main').append('\
-        <div class="' + anchor + '">\
+        <div class="' + anchor + ' mb-4">\
             <h2 class="text-center">' + title + '</h2>\
             <nav>\
                 <div class= "nav nav-tabs mb-4" id = "nav-tab" role = "tablist">\
