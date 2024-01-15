@@ -184,6 +184,12 @@ async function extractMetadata(xmlDocument) {
             metadata.year = year.snapshotItem(0).textContent;
         }
 
+        // get the tocLink
+        if (tocLink = xmlDocument.evaluateSRU(record + '//mods:url[@displayLabel="Inhaltsverzeichnis"]'))
+        {
+            metadata.tocLink = tocLink.snapshotItem(0).textContent;
+        }
+
         // get the cover image url and pick first match in case there are multiple
         if (cover = xmlDocument.evaluateSRU(record + '//mods:mods/mods:location/mods:url[@displayLabel="Cover"]')) {
             metadata.cover = cover.snapshotItem(0).textContent;
@@ -337,16 +343,19 @@ async function renderRecords(metadata, anchor, color, title = "") {
 
         $('div.' + anchor + '> div > div#nav-' + anchor + navTabIndex + '> div.row').append('\
         <div class="col">\
-            <div class="card shadow text-bg-' + color + '" style="max-width: 540px; cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">\
+            <div class="card shadow text-bg-' + color + '" style="max-width: 540px;">\
                 <div class="row g-0">\
                     <div class="col-md-12">\
                         <div class="card-header">\
                             <h4 class="text-end mb-0"><i class="bi bi-star"></i></h4>\
                         </div>\
                         <div class="card-body">\
-                            <h5 class="card-title">' + metadata[i].title + (metadata[i].subTitle ? ': ' + metadata[i].subTitle : '') + '</h5>\
+                            <h5 class="card-title" style="cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">' + metadata[i].title + (metadata[i].subTitle ? ': ' + metadata[i].subTitle : '') + '</h5>\
                             <p class="card-text">' + metadata[i].year + '</p>\
                             <p class="card-text"><small class="text-body-secondary">' + authorlist.join(' / ') + '</small></p>\
+                        </div>\
+                        <div class="card-footer">\
+                        ' + (metadata[i].tocLink ? '<a href="' + metadata[i].tocLink + '"><i class="bi bi-list-columns"></i></a>' : '') + '\
                         </div>\
                     </div>\
                 </div>\
