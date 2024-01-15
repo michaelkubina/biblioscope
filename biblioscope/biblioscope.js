@@ -208,7 +208,7 @@ async function extractMetadata(xmlDocument) {
         result.push(metadata);
     }
 
-    console.log(result);
+    //console.log(result);
     return result;
 }
 
@@ -265,7 +265,7 @@ async function renderRecords(metadata, anchor, color, title = "") {
         <div class="' + anchor + ' mb-4">\
             <h2 class="text-center">' + title + '</h2>\
             <nav>\
-                <div class= "nav nav-tabs mb-4" id = "nav-tab" role = "tablist">\
+                <div class="nav nav-tabs mb-4" id="nav-tab" role="tablist">\
                 </div>\
             </nav>\
             <div class="tab-content" id="nav-tabContent">\
@@ -279,11 +279,21 @@ async function renderRecords(metadata, anchor, color, title = "") {
     navTabIndex = $('main > div.' + anchor + ' div#nav-tab .nav-link').length;
 
     // add nav-tab
-    $('main > div.' + anchor + ' div#nav-tab').append('<button class="nav-link' + (navTabIndex == 0 ? ' active' : '') + '" id="nav-' + anchor + navTabIndex + '-tab" data-bs-toggle="tab" data-bs-target="#nav-' + anchor + navTabIndex + '" type="button" role="tab" aria-controls="nav-' + anchor + navTabIndex + '" aria-selected="true">' + metadata.query + '</button>');
+    $('main > div.' + anchor + ' div#nav-tab').append('\
+    <button \
+        class="nav-link' + (navTabIndex == 0 ? ' active' : '') + '" \
+        id="nav-' + anchor + navTabIndex + '-tab" \
+        data-bs-toggle="tab" \
+        data-bs-target="#nav-' + anchor + navTabIndex + '" \
+        type="button" role="tab" \
+        aria-controls="nav-' + anchor + navTabIndex + '" \
+        aria-selected="true">' + metadata.query + (metadata.field == "per" ? ' <i class="bi bi-exclamation-triangle-fill text-warning"></i>' : (metadata.field == "nid" ? ' <i class="bi bi-bank text-success"></i>' : "")) + '\
+    </button > ');
 
     // add tab-pane
     $('main > div.' + anchor + ' div.tab-content').append('\
     <div class="tab-pane fade show' + (navTabIndex == 0 ? ' active' : '') + '" id="nav-' + anchor + navTabIndex + '" role="tabpanel" aria-labelledby="nav-' + anchor + navTabIndex + '-tab" tabindex="0">\
+    ' + (metadata.field == "per" ? '<div class="alert alert-warning" role="alert">Attention! The results may contain works from other authors that share the same name. The search was performed as a free search, because there was no authoritive data available for this author.</div>' : '') + '\
         <div class="row row-cols-1 row-cols-md-4 g-4">\
         </div>\
     </div>\
@@ -297,7 +307,7 @@ async function renderRecords(metadata, anchor, color, title = "") {
             authorlist.push(metadata[i].author[j].family + ', ' + metadata[i].author[j].given);
         }
 
-        $('div.' + anchor + '> div > div#nav-' + anchor + navTabIndex + '> div').append('\
+        $('div.' + anchor + '> div > div#nav-' + anchor + navTabIndex + '> div.row').append('\
         <div class="col">\
             <div class="card shadow text-bg-' + color + '" style="max-width: 540px; cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">\
                 <div class="row g-0">\
@@ -310,7 +320,6 @@ async function renderRecords(metadata, anchor, color, title = "") {
                             <p class="card-text">' + metadata[i].subTitle + '</p>\
                             <p class="card-text"><small class="text-body-secondary">' + authorlist.join(' / ') + '</small></p>\
                         </div>\
-                                ' + (metadata.field != "nid" && metadata.field != "ppn" ? '<div class="card-footer"><div class="alert alert-warning" role="alert">Attention! Results can contain authors or topics with identical names!</div></div>' : '') + '\
                     </div>\
                 </div>\
             </div>\
