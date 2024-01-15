@@ -1,9 +1,12 @@
 // some globals
 var database = "opac-de-18"
-var maxRecords = 10;
+var maxRecords = 12;
 
 // Initialize an empty array to hold all document metadata
 const discoveryJourney = [];
+
+// author repository is just an associative array with the identifier as key and the name as value
+var authorAuthorityRepository = [];
 
 // takes the discovery journes to the next record request
 /**
@@ -37,7 +40,15 @@ async function visitRecord(ppn) {
         for (classification of currentDocumentMetadata[0].topic[classificationType]) {
             if (classificationType == "ddc") {
                 classificationType = "sgd";
-                classification = classification.substr(0, 3);
+                //classification = classification.substr(0, 3);
+            }
+            if (classificationType == "ssgn") {
+                classificationType = "ssg";
+                //classification = classification.substr(0, 3);
+            }
+            if (classificationType == "sdnb") {
+                classificationType = "sgr";
+                //classification = classification.substr(0, 3);
             }
             
             relatedDocumentsByTopic = await fetchRecordsBy(database, classificationType, classification);
@@ -45,6 +56,8 @@ async function visitRecord(ppn) {
             renderRecords(relatedDocumentsByTopicMetadata, "relatedByTopic", "secondary", "Related works by topic(s)");
         }
     }
+
+    //console.log(authorAuthorityRepository);
 }
 
 /**
@@ -80,6 +93,11 @@ async function extractMetadata(xmlDocument) {
     split = query.split('=');
     result.field = split[0].replace(/pica\./g, '');
     result.query = split[1].replace(/"/g, '');
+    if (authorAuthorityRepository[result.query]) {
+        result.title = authorAuthorityRepository[result.query];
+    } else {
+        result.title = result.query;
+    }
 
     // todo: resolve fields with identifiers as values with their corresponding text if available
     // eg. GND-Number of author should be translated to name, GND-Number of topic should be translated to name
@@ -87,6 +105,7 @@ async function extractMetadata(xmlDocument) {
 
     // loop over all result records
     records = xmlDocument.evaluateSRU('//zs:record');
+    //console.log(records);
 
     for (let i = 0; i < records.snapshotLength; i++) {
 
@@ -98,6 +117,7 @@ async function extractMetadata(xmlDocument) {
                 "family": "",
                 "given": "",
             }],
+            "year": "",
             "topic":[],
             "tags": {
                 "isFavourite": false,
@@ -159,6 +179,11 @@ async function extractMetadata(xmlDocument) {
             metadata.subTitle = subTitle.snapshotItem(0).textContent;
         }
 
+        // get the year
+        if (year = xmlDocument.evaluateSRU(record + '//mods:mods/mods:originInfo[@eventType="publication"]/mods:dateIssued')) {
+            metadata.year = year.snapshotItem(0).textContent;
+        }
+
         // get the cover image url and pick first match in case there are multiple
         if (cover = xmlDocument.evaluateSRU(record + '//mods:mods/mods:location/mods:url[@displayLabel="Cover"]')) {
             metadata.cover = cover.snapshotItem(0).textContent;
@@ -182,6 +207,9 @@ async function extractMetadata(xmlDocument) {
                     personal.nameIdentifier = captureGroups[1];
                 }
                 metadata.author[i] = personal;
+                if (personal.nameIdentifier && !authorAuthorityRepository[personal.nameIdentifier]) {
+                    authorAuthorityRepository[personal.nameIdentifier] = personal.family + ", " + personal.given;
+                }
             }
         }
 
@@ -287,7 +315,7 @@ async function renderRecords(metadata, anchor, color, title = "") {
         data-bs-target="#nav-' + anchor + navTabIndex + '" \
         type="button" role="tab" \
         aria-controls="nav-' + anchor + navTabIndex + '" \
-        aria-selected="true">' + metadata.query + (metadata.field == "per" ? ' <i class="bi bi-exclamation-triangle-fill text-warning"></i>' : (metadata.field == "nid" ? ' <i class="bi bi-bank text-success"></i>' : "")) + '\
+        aria-selected="true">' + metadata.title + (metadata.field == "per" ? ' <i class="bi bi-exclamation-triangle-fill text-warning"></i>' : (metadata.field == "nid" ? ' <i class="bi bi-bank text-success"></i>' : "")) + '\
     </button > ');
 
     // add tab-pane
@@ -316,8 +344,8 @@ async function renderRecords(metadata, anchor, color, title = "") {
                             <h4 class="text-end mb-0"><i class="bi bi-star"></i></h4>\
                         </div>\
                         <div class="card-body">\
-                            <h5 class="card-title">' + metadata[i].title + '</h5>\
-                            <p class="card-text">' + metadata[i].subTitle + '</p>\
+                            <h5 class="card-title">' + metadata[i].title + (metadata[i].subTitle ? ': ' + metadata[i].subTitle : '') + '</h5>\
+                            <p class="card-text">' + metadata[i].year + '</p>\
                             <p class="card-text"><small class="text-body-secondary">' + authorlist.join(' / ') + '</small></p>\
                         </div>\
                     </div>\
