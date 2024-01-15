@@ -208,7 +208,7 @@ async function extractMetadata(xmlDocument) {
         result.push(metadata);
     }
 
-    //console.log(result);
+    console.log(result);
     return result;
 }
 
@@ -260,7 +260,7 @@ async function renderRecords(metadata, anchor, color, title = "") {
     //console.log(metadata);
 
     // place a nav-tab only if there is no nav-tab already
-    if ($('main div.' + anchor).length <= 0) {
+    if ($('main div.' + anchor).length < 1) {
         $('main').append('\
         <div class="' + anchor + ' mb-4">\
             <h2 class="text-center">' + title + '</h2>\
@@ -297,7 +297,7 @@ async function renderRecords(metadata, anchor, color, title = "") {
             authorlist.push(metadata[i].author[j].family + ', ' + metadata[i].author[j].given);
         }
 
-        $('div.' + anchor + '> div > div > div').append('\
+        $('div.' + anchor + '> div > div#nav-' + anchor + navTabIndex + '> div').append('\
         <div class="col">\
             <div class="card shadow text-bg-' + color + '" style="max-width: 540px; cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">\
                 <div class="row g-0">\
@@ -315,6 +315,7 @@ async function renderRecords(metadata, anchor, color, title = "") {
                 </div>\
             </div>\
         </div>'
-        );
+            );
+
     }
 }
