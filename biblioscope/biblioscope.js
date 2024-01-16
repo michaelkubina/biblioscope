@@ -8,6 +8,36 @@ const discoveryJourney = [];
 // author repository is just an associative array with the identifier as key and the name as value
 var authorAuthorityRepository = [];
 
+// document repository
+var documentRepository = {};
+
+function addDocumentToRepository(key, isFavorite = false, isBookmark = false, isDeadEnd = false) {
+    // Check if the key already exists in the documentRepository
+    if (!(key in documentRepository)) {
+        documentRepository[key] = {
+            "isFavorite": isFavorite,
+            "isBookmark": isBookmark,
+            "isDeadEnd": isDeadEnd,
+        };
+    } else {
+        console.log(`Object with key '${key}' already exists. Not adding a new one.`);
+    }
+}
+
+function toggleFavorite(key) {
+    documentRepository[key].isFavorite = !documentRepository[key].isFavorite;
+    $('.' + key + '.favorite').toggleClass('bi-star').toggleClass('bi-star-fill');
+    console.log(key + ': ' + documentRepository[key]);
+}
+
+function toggleBookmark(key, element) {
+    documentRepository[key].isBookmark = !documentRepository[key].isBookmark;
+}
+
+function toggleDeadEnd(key, element) {
+    documentRepository[key].isDeadEnd = !documentRepository[key].isDeadEnd;
+}
+
 // takes the discovery journes to the next record request
 /**
  * This function serves as the entry point for a new journey path
@@ -27,9 +57,11 @@ async function visitRecord(ppn) {
     for (author of currentDocumentMetadata[0].author) {
         if (author.nameIdentifier) {
             doc2 = await fetchRecordsBy(database, "nid", author.nameIdentifier);
-        } else {
-            doc2 = await fetchRecordsBy(database, "per", author.family + ", " + author.given);
+            doc2Metadata = await extractMetadata(doc2);
+            renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related works by the author(s)");
         }
+
+        doc2 = await fetchRecordsBy(database, "per", author.family + ", " + author.given);
         doc2Metadata = await extractMetadata(doc2);
         renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related works by the author(s)");
     }
@@ -118,6 +150,7 @@ async function extractMetadata(xmlDocument) {
                 "given": "",
             }],
             "year": "",
+            "edition": "",
             "topic":[],
             "tags": {
                 "isFavourite": false,
@@ -139,6 +172,8 @@ async function extractMetadata(xmlDocument) {
         // get the id
         ppn = xmlDocument.evaluateSRU(record + '//mods:mods/mods:recordInfo/mods:recordIdentifier[@source="DE-627"]');
         metadata.id = ppn.snapshotItem(0).textContent;
+        addDocumentToRepository(metadata.id);
+        console.log(documentRepository);
 
         // get the type
         if (type = xmlDocument.evaluateSRU(record + '//mods:mods/mods:originInfo/mods:issuance')) {
@@ -182,6 +217,11 @@ async function extractMetadata(xmlDocument) {
         // get the year
         if (year = xmlDocument.evaluateSRU(record + '//mods:mods/mods:originInfo[@eventType="publication"]/mods:dateIssued')) {
             metadata.year = year.snapshotItem(0).textContent;
+        }
+
+        // get the edition
+        if (edition = xmlDocument.evaluateSRU(record + '//mods:mods/mods:originInfo/mods:edition')) {
+            metadata.edition = edition.snapshotItem(0).textContent;
         }
 
         // get the tocLink
@@ -347,11 +387,11 @@ async function renderRecords(metadata, anchor, color, title = "") {
                 <div class="row g-0">\
                     <div class="col-md-12">\
                         <div class="card-header">\
-                            <h4 class="text-end mb-0"><i class="bi bi-star"></i></h4>\
+                            <h4 class="text-end mb-0"><i class="bi ' + (documentRepository[metadata[i].id].isFavorite ? 'bi-star-fill' : 'bi-star') + ' favorite ' + metadata[i].id + '" onclick="toggleFavorite(' + metadata[i].id + ')"></i></h4>\
                         </div>\
                         <div class="card-body">\
                             <h5 class="card-title" style="cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">' + metadata[i].title + (metadata[i].subTitle ? ': ' + metadata[i].subTitle : '') + '</h5>\
-                            <p class="card-text">' + metadata[i].year + '</p>\
+                            <p class="card-text">' + metadata[i].edition + '<br>' + metadata[i].year + '</p>\
                             <p class="card-text"><small class="text-body-secondary">' + authorlist.join(' / ') + '</small></p>\
                         </div>\
                         <div class="card-footer">\
