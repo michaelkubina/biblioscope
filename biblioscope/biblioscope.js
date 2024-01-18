@@ -89,6 +89,15 @@ async function visitRecord(ppn) {
         }
     }
 
+    // render related documents by topic
+    for (subjectType in currentDocumentMetadata[0].subject) {
+        for (subject of currentDocumentMetadata[0].subject[subjectType]) {
+            relatedDocumentsBySubject = await fetchRecordsBy(database, "slw", subject);
+            relatedDocumentsBySubjectMetadata = await extractMetadata(relatedDocumentsBySubject);
+            renderRecords(relatedDocumentsBySubjectMetadata, "relatedBySubject", "primary", "Related works by subject(s)");
+        }
+    }
+
     //console.log(authorAuthorityRepository);
 }
 
@@ -151,7 +160,8 @@ async function extractMetadata(xmlDocument) {
             }],
             "year": "",
             "edition": "",
-            "topic":[],
+            "topic": [],
+            "subject": [],
             "tags": {
                 "isFavourite": false,
                 "fromAuthority": false,
@@ -174,6 +184,7 @@ async function extractMetadata(xmlDocument) {
         metadata.id = ppn.snapshotItem(0).textContent;
         addDocumentToRepository(metadata.id);
         console.log(documentRepository);
+        console.log(metadata.id);
 
         // get the type
         if (type = xmlDocument.evaluateSRU(record + '//mods:mods/mods:originInfo/mods:issuance')) {
@@ -279,6 +290,31 @@ async function extractMetadata(xmlDocument) {
             }
         }
 
+        // get a list of all used subjects
+        if (subjectAttributes = xmlDocument.evaluateSRU(record + '//mods:mods/mods:subject/@authority')) {
+            subjectList = [];
+            
+            for (let i = 0; i < subjectAttributes.snapshotLength; i++) {
+                subjectList.push(subjectAttributes.snapshotItem(i).nodeValue);
+            }
+
+            console.log(subjectList);
+            // filters array for unique values
+            subjectList = [...new Set(subjectList)];
+
+            // iterate over all classifications
+            for (item of subjectList) {
+                subjectNodes = xmlDocument.evaluateSRU(record + '//mods:mods/mods:subject[@authority="' + item + '"]/mods:topic');
+                if (subjectNodes) {
+                    metadata.subject[item] = [];
+                    for (let i = 0; i < subjectNodes.snapshotLength; i++) {
+                        metadata.subject[item].push((subjectNodes.snapshotItem(i).textContent));
+                    }
+                }
+            }
+        }
+
+        console.log(metadata);
         result.push(metadata);
     }
 
