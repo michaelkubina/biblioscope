@@ -11,12 +11,11 @@ var authorAuthorityRepository = [];
 // document repository
 var documentRepository = {};
 
-function addDocumentToRepository(key, isFavorite = false, isBookmark = false, isDeadEnd = false) {
+function addDocumentToRepository(key, isFavorite = false, isDeadEnd = false) {
     // Check if the key already exists in the documentRepository
     if (!(key in documentRepository)) {
         documentRepository[key] = {
             "isFavorite": isFavorite,
-            "isBookmark": isBookmark,
             "isDeadEnd": isDeadEnd,
         };
     } else {
@@ -30,12 +29,9 @@ function toggleFavorite(key) {
     console.log(key + ': ' + documentRepository[key]);
 }
 
-function toggleBookmark(key, element) {
-    documentRepository[key].isBookmark = !documentRepository[key].isBookmark;
-}
-
-function toggleDeadEnd(key, element) {
+function toggleDeadEnd(key) {
     documentRepository[key].isDeadEnd = !documentRepository[key].isDeadEnd;
+    $('.' + key + '.deadend').toggleClass('bi-ban').toggleClass('bi-ban-fill');
 }
 
 // takes the discovery journes to the next record request
@@ -423,7 +419,10 @@ async function renderRecords(metadata, anchor, color, title = "") {
                 <div class="row g-0">\
                     <div class="col-md-12">\
                         <div class="card-header">\
-                            <h4 class="text-end mb-0"><i class="bi ' + (documentRepository[metadata[i].id].isFavorite ? 'bi-star-fill' : 'bi-star') + ' favorite ' + metadata[i].id + '" onclick="toggleFavorite(' + metadata[i].id + ')"></i></h4>\
+                            <h4 class="text-end mb-0">\
+                            <i class="bi ' + (documentRepository[metadata[i].id].isDeadEnd ? 'bi-ban-fill' : 'bi-ban') + ' deadend ' + metadata[i].id + '" onclick="toggleDeadEnd(' + metadata[i].id + ')"></i>\
+                            <i class="bi ' + (documentRepository[metadata[i].id].isFavorite ? 'bi-star-fill' : 'bi-star') + ' favorite ' + metadata[i].id + '" onclick="toggleFavorite(' + metadata[i].id + ')"></i>\
+                            </h4>\
                         </div>\
                         <div class="card-body">\
                             <h5 class="card-title" style="cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">' + metadata[i].title + (metadata[i].subTitle ? ': ' + metadata[i].subTitle : '') + '</h5>\
