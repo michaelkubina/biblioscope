@@ -1,6 +1,6 @@
 // some globals
 var database = "opac-de-18"
-var maxRecords = 12;
+var maxRecords = 4;
 
 // Initialize an empty array to hold all document metadata
 const discoveryJourney = [];
@@ -11,27 +11,30 @@ var authorAuthorityRepository = [];
 // document repository
 var documentRepository = {};
 
-function addDocumentToRepository(key, isFavorite = false, isDeadEnd = false) {
-    // Check if the key already exists in the documentRepository
-    if (!(key in documentRepository)) {
-        documentRepository[key] = {
-            "isFavorite": isFavorite,
-            "isDeadEnd": isDeadEnd,
-        };
-    } else {
-        console.log(`Object with key '${key}' already exists. Not adding a new one.`);
-    }
+// create IndexedDB database
+var db = new Dexie("biblioscopeDatabase");
+db.version(1).stores({
+    documents: "ppn, isFavorite, isDeadEnd",
+});
+
+async function toggleFavorite(ppn) {
+    const record = await db.documents.get({ 'ppn': ppn });
+    console.log(record);
+        record.isFavorite = !record.isFavorite;
+        await db.documents.put(record);
+
+    // change icon
+    $('.favorite[data-ppn="' + ppn + '"]').toggleClass('bi-star').toggleClass('bi-star-fill');
 }
 
-function toggleFavorite(key) {
-    documentRepository[key].isFavorite = !documentRepository[key].isFavorite;
-    $('.' + key + '.favorite').toggleClass('bi-star').toggleClass('bi-star-fill');
-    console.log(key + ': ' + documentRepository[key]);
-}
+async function toggleDeadEnd(ppn) {
+    const record = await db.documents.get({ 'ppn': ppn });
+    console.log(record);
+    record.isDeadEnd = !record.isDeadEnd;
+    await db.documents.put(record);
 
-function toggleDeadEnd(key) {
-    documentRepository[key].isDeadEnd = !documentRepository[key].isDeadEnd;
-    $('.' + key + '.deadend').toggleClass('bi-ban').toggleClass('bi-ban-fill');
+    // change icon
+    $('.deadend[data-ppn="' + ppn + '"]').toggleClass('bi-ban').toggleClass('bi-ban-fill');
 }
 
 // takes the discovery journes to the next record request
@@ -62,7 +65,7 @@ async function visitRecord(ppn) {
         renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related works by the author(s)");
     }
 
-    console.log(currentDocumentMetadata[0].topic);
+    //console.log(currentDocumentMetadata[0].topic);
     // render related documents by topic
     for (classificationType in currentDocumentMetadata[0].topic) {
         for (classification of currentDocumentMetadata[0].topic[classificationType]) {
@@ -178,9 +181,6 @@ async function extractMetadata(xmlDocument) {
         // get the id
         ppn = xmlDocument.evaluateSRU(record + '//mods:mods/mods:recordInfo/mods:recordIdentifier[@source="DE-627"]');
         metadata.id = ppn.snapshotItem(0).textContent;
-        addDocumentToRepository(metadata.id);
-        console.log(documentRepository);
-        console.log(metadata.id);
 
         // get the type
         if (type = xmlDocument.evaluateSRU(record + '//mods:mods/mods:originInfo/mods:issuance')) {
@@ -294,7 +294,7 @@ async function extractMetadata(xmlDocument) {
                 subjectList.push(subjectAttributes.snapshotItem(i).nodeValue);
             }
 
-            console.log(subjectList);
+            //console.log(subjectList);
             // filters array for unique values
             subjectList = [...new Set(subjectList)];
 
@@ -310,7 +310,10 @@ async function extractMetadata(xmlDocument) {
             }
         }
 
-        console.log(metadata);
+        if (!await db.documents.get(metadata.id)) {
+            await db.documents.add({'ppn': metadata.id, 'isFavorite': false, 'isDeadEnd': false, 'metadata': metadata });
+        }
+
         result.push(metadata);
     }
 
@@ -407,6 +410,8 @@ async function renderRecords(metadata, anchor, color, title = "") {
 
     for (i = 0; i < metadata.length; i++) {
 
+        var record = await db.documents.get({ 'ppn': metadata[i].id });
+
         authorlist = [];
 
         for (j = 0; j < metadata[i].author.length; j++) {
@@ -420,8 +425,8 @@ async function renderRecords(metadata, anchor, color, title = "") {
                     <div class="col-md-12">\
                         <div class="card-header">\
                             <h4 class="text-end mb-0">\
-                            <i class="bi ' + (documentRepository[metadata[i].id].isDeadEnd ? 'bi-ban-fill' : 'bi-ban') + ' deadend ' + metadata[i].id + '" onclick="toggleDeadEnd(' + metadata[i].id + ')"></i>\
-                            <i class="bi ' + (documentRepository[metadata[i].id].isFavorite ? 'bi-star-fill' : 'bi-star') + ' favorite ' + metadata[i].id + '" onclick="toggleFavorite(' + metadata[i].id + ')"></i>\
+                            <i class="bi ' + (await record.isDeadEnd ? 'bi-ban-fill' : 'bi-ban') + ' deadend" data-ppn="' + record.ppn + '"></i>\
+                            <i class="bi ' + (await record.isFavorite ? 'bi-star-fill' : 'bi-star') + ' favorite" data-ppn="' + record.ppn + '"></i>\
                             </h4>\
                         </div>\
                         <div class="card-body">\
@@ -436,7 +441,18 @@ async function renderRecords(metadata, anchor, color, title = "") {
                 </div>\
             </div>\
         </div>'
-            );
+        );
 
+        // add an event listener for the onclick toggle event, in order to use async functions properly
+        $('.favorite[data-ppn="' + record.ppn + '"]').last().on('click', async function () {
+            // Call the handleClick function and pass the button element
+            await toggleFavorite($(this).attr('data-ppn'));
+        });
+
+        // add an event listener for the onclick toggle event, in order to use async functions properly
+        $('.deadend[data-ppn="' + record.ppn + '"]').last().on('click', async function () {
+            // Call the handleClick function and pass the button element
+            await toggleDeadEnd($(this).attr('data-ppn'));
+        });
     }
 }
