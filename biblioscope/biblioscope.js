@@ -37,6 +37,29 @@ async function toggleDeadEnd(ppn) {
     $('.deadend[data-ppn="' + ppn + '"]').toggleClass('bi-ban').toggleClass('bi-ban-fill');
 }
 
+/**
+ * This function takes an XMLDocument and returns an array of PPNs
+ * @param {XMLDocument} xmlDocument - The fetched XMLDocument as a jsmf-xjson.
+ * @returns {String[]} - A simple list of PPNs.
+ */
+function listRecords(xmlDocument) {
+    recordList = [];
+
+    // select all records
+    records = xmlDocument.evaluateSRU('//record');
+
+    // loop over all records
+    for (let i = 0; i < records.snapshotLength; i++) {
+        // grab the json string
+        jsonString = records.snapshotItem(i).textContent;
+        // make a json object from it
+        const jsonObject = JSON.parse(jsonString);
+        // add ppn to recordList
+        recordList.push(jsonObject.ppn);
+    }
+    return recordList;
+}
+
 // takes the discovery journes to the next record request
 /**
  * This function serves as the entry point for a new journey path
@@ -48,6 +71,10 @@ async function visitRecord(ppn) {
     $('main').empty();
 
     // current document
+    currentQuery = await fetchRecordsBy(database, "per", "fischer", "jsmf-xjson");
+    documentList = listRecords(currentQuery);
+
+
     currentDocument = await fetchRecordsBy(database, "ppn", ppn, "mods36");
     currentDocumentMetadata = await extractMetadata(currentDocument);
     renderRecords(currentDocumentMetadata, "currentTitle", "primary");
