@@ -8,9 +8,6 @@ const discoveryJourney = [];
 // author repository is just an associative array with the identifier as key and the name as value
 var authorAuthorityRepository = [];
 
-// document repository
-var documentRepository = {};
-
 // create IndexedDB database
 var db = new Dexie("biblioscopeDatabase");
 db.version(1).stores({
