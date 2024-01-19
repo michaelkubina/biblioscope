@@ -48,19 +48,19 @@ async function visitRecord(ppn) {
     $('main').empty();
 
     // current document
-    currentDocument = await fetchRecordsBy(database, "ppn", ppn);
+    currentDocument = await fetchRecordsBy(database, "ppn", ppn, "mods36");
     currentDocumentMetadata = await extractMetadata(currentDocument);
     renderRecords(currentDocumentMetadata, "currentTitle", "primary");
 
     // render related documents by author
     for (author of currentDocumentMetadata[0].author) {
         if (author.nameIdentifier) {
-            doc2 = await fetchRecordsBy(database, "nid", author.nameIdentifier);
+            doc2 = await fetchRecordsBy(database, "nid", author.nameIdentifier, "mods36");
             doc2Metadata = await extractMetadata(doc2);
             renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related works by the author(s)");
         }
 
-        doc2 = await fetchRecordsBy(database, "per", author.family + ", " + author.given);
+        doc2 = await fetchRecordsBy(database, "per", author.family + ", " + author.given, "mods36");
         doc2Metadata = await extractMetadata(doc2);
         renderRecords(doc2Metadata, "relatedByAuthor", "light", "Related works by the author(s)");
     }
@@ -82,7 +82,7 @@ async function visitRecord(ppn) {
                 //classification = classification.substr(0, 3);
             }
             
-            relatedDocumentsByTopic = await fetchRecordsBy(database, classificationType, classification);
+            relatedDocumentsByTopic = await fetchRecordsBy(database, classificationType, classification, "mods36");
             relatedDocumentsByTopicMetadata = await extractMetadata(relatedDocumentsByTopic);
             renderRecords(relatedDocumentsByTopicMetadata, "relatedByTopic", "secondary", "Related works by topic(s)");
         }
@@ -91,7 +91,7 @@ async function visitRecord(ppn) {
     // render related documents by topic
     for (subjectType in currentDocumentMetadata[0].subject) {
         for (subject of currentDocumentMetadata[0].subject[subjectType]) {
-            relatedDocumentsBySubject = await fetchRecordsBy(database, "slw", subject);
+            relatedDocumentsBySubject = await fetchRecordsBy(database, "slw", subject, "mods36");
             relatedDocumentsBySubjectMetadata = await extractMetadata(relatedDocumentsBySubject);
             renderRecords(relatedDocumentsBySubjectMetadata, "relatedBySubject", "primary", "Related works by subject(s)");
         }
@@ -105,11 +105,12 @@ async function visitRecord(ppn) {
  * @param {string} database - The string representing the database to query.
  * @param {string} field - The string representing the pica field type to query.
  * @param {string} value - The string representing the actual search query.
+ * @param {string} schema - The string representing the in which schema records get returned.
  * @returns {XMLDocument} The DOM representing the result of the search query - can have multiple records.
  */
 
-async function fetchRecordsBy(database, field, value) {
-    const response = await fetch("https://sru.k10plus.de/" + database + "?version=1.1&operation=searchRetrieve&query=pica." + field + "%3D\"" + value + "\"&maximumRecords=" + maxRecords + "&recordSchema=mods36");
+async function fetchRecordsBy(database, field, value, schema) {
+    const response = await fetch("https://sru.k10plus.de/" + database + "?version=1.1&operation=searchRetrieve&query=pica." + field + "%3D\"" + value + "\"&maximumRecords=" + maxRecords + "&recordSchema=" + schema);
     const record = await response.text();
     //console.log(record);
     const parser = new DOMParser();
