@@ -11,7 +11,7 @@ var authorAuthorityRepository = [];
 // create IndexedDB database
 var db = new Dexie("biblioscopeDatabase");
 db.version(1).stores({
-    documents: "ppn, isFavorite, isDeadEnd",
+    documents: "ppn",
 });
 
 async function toggleFavorite(ppn) {
@@ -31,7 +31,7 @@ async function toggleDeadEnd(ppn) {
     await db.documents.put(record);
 
     // change icon
-    $('.deadend[data-ppn="' + ppn + '"]').toggleClass('bi-ban').toggleClass('bi-ban-fill');
+    $('.deadend[data-ppn="' + ppn + '"]').toggleClass('bi-x-octagon').toggleClass('bi-x-octagon-fill');
 }
 
 /**
@@ -67,11 +67,13 @@ async function visitRecord(ppn) {
     // flush the DOM
     $('main').empty();
 
-    // current document
-    currentQuery = await fetchRecordsBy(database, "per", "fischer", "jsmf-xjson");
-    documentList = listRecords(currentQuery);
+    // query the SRU and retrieve the response records
+    //queryResult = await fetchRecordsBy(database, "per", "fischer", "jsmf-xjson");
+    // extract a list of just the ppn
+    //recordIdentifierList = listRecords(queryResult);
+    //addMetadataToDatabase(recordIdentifierList);
 
-
+    //
     currentDocument = await fetchRecordsBy(database, "ppn", ppn, "mods36");
     currentDocumentMetadata = await extractMetadata(currentDocument);
     renderRecords(currentDocumentMetadata, "currentTitle", "primary");
@@ -143,6 +145,22 @@ async function fetchRecordsBy(database, field, value, schema) {
     return result;
 }
 
+async function addMetadataToDatabase(recordIdentifierList) {
+    for (const recordIdentifier of recordIdentifierList) {
+        // check if ppn already in db
+        if (await db.documents.get(recordIdentifier)) {
+            console.log(recordIdentifier + " already in Database!");
+            console.log(db.documents.get(recordIdentifier));
+        } else {
+            // add to db
+            console.log("Adding metadata of " + recordIdentifier + " to Database!");
+            currentDocument = await fetchRecordsBy(database, "ppn", recordIdentifier, "mods36");
+            console.log(await currentDocument);
+            currentDocumentMetadata = await extractMetadata(currentDocument);
+        }
+    }
+}
+
 /**
  * This function extracts the needed metadata of each record and returns an array of metadata objects.
  * @param {XMLDocument} xmlDocument - The XMLDocument containing the record(s).
@@ -177,6 +195,7 @@ async function extractMetadata(xmlDocument) {
         // Initialize an empty JSON object
         const metadata = {
             "id": null,
+            "ppn": null,
             "type": "",
             "author": [{
                 "family": "",
@@ -206,6 +225,7 @@ async function extractMetadata(xmlDocument) {
         // get the id
         ppn = xmlDocument.evaluateSRU(record + '//mods:mods/mods:recordInfo/mods:recordIdentifier[@source="DE-627"]');
         metadata.id = ppn.snapshotItem(0).textContent;
+        metadata.ppn = metadata.id;
 
         // get the type
         if (type = xmlDocument.evaluateSRU(record + '//mods:mods/mods:originInfo/mods:issuance')) {
@@ -336,7 +356,9 @@ async function extractMetadata(xmlDocument) {
         }
 
         if (!await db.documents.get(metadata.id)) {
-            await db.documents.add({'ppn': metadata.id, 'isFavorite': false, 'isDeadEnd': false, 'metadata': metadata });
+            //await db.documents.add({'ppn': metadata.id, 'isFavorite': false, 'isDeadEnd': false, 'metadata': metadata });
+
+            await db.documents.put(metadata);
         }
 
         result.push(metadata);
@@ -439,8 +461,8 @@ async function renderRecords(metadata, anchor, color, title = "") {
 
         authorlist = [];
 
-        for (j = 0; j < metadata[i].author.length; j++) {
-            authorlist.push(metadata[i].author[j].family + ', ' + metadata[i].author[j].given);
+        for (j = 0; j < record.author.length; j++) {
+            authorlist.push(record.author[j].family + ', ' + record.author[j].given);
         }
 
         $('div.' + anchor + '> div > div#nav-' + anchor + navTabIndex + '> div.row').append('\
@@ -450,17 +472,17 @@ async function renderRecords(metadata, anchor, color, title = "") {
                     <div class="col-md-12">\
                         <div class="card-header">\
                             <h4 class="text-end mb-0">\
-                            <i class="bi ' + (await record.isDeadEnd ? 'bi-ban-fill' : 'bi-ban') + ' deadend" data-ppn="' + record.ppn + '"></i>\
+                            <i class="bi ' + (await record.isDeadEnd ? 'bi-x-octagon-fill' : 'bi-x-octagon') + ' deadend" data-ppn="' + record.ppn + '"></i>\
                             <i class="bi ' + (await record.isFavorite ? 'bi-star-fill' : 'bi-star') + ' favorite" data-ppn="' + record.ppn + '"></i>\
                             </h4>\
                         </div>\
                         <div class="card-body">\
-                            <h5 class="card-title" style="cursor: pointer;" onclick="visitRecord(\'' + metadata[i].id + '\')">' + metadata[i].title + (metadata[i].subTitle ? ': ' + metadata[i].subTitle : '') + '</h5>\
-                            <p class="card-text">' + metadata[i].edition + '<br>' + metadata[i].year + '</p>\
+                            <h5 class="card-title" style="cursor: pointer;" onclick="visitRecord(\'' + record.id + '\')">' + record.title + (record.subTitle ? ': ' + record.subTitle : '') + '</h5>\
+                            <p class="card-text">' + record.edition + '<br>' + record.year + '</p>\
                             <p class="card-text"><small class="text-body-secondary">' + authorlist.join(' / ') + '</small></p>\
                         </div>\
                         <div class="card-footer">\
-                        ' + (metadata[i].tocLink ? '<a href="' + metadata[i].tocLink + '"><i class="bi bi-list-columns"></i></a>' : '') + '\
+                        ' + (record.tocLink ? '<a href="' + record.tocLink + '"><i class="bi bi-list-columns"></i></a>' : '') + '\
                         </div>\
                     </div>\
                 </div>\
@@ -481,3 +503,4 @@ async function renderRecords(metadata, anchor, color, title = "") {
         });
     }
 }
+
